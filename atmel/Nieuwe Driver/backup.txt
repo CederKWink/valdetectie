@@ -1,0 +1,96 @@
+/*
+ * sendNrf.c
+ *
+ * Created: 11-11-2020 22:11:31
+ * Author : ceder
+ */ 
+
+#define  F_CPU   2000000UL     //!< System clock is 32 MHz
+
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <util/delay.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#include "serialF0.h"
+#include "driverDriver.h"
+
+#define LIMIT_PORT			PORTB
+#define rightEnd_bm			PIN6_bm
+#define leftEnd_bm			PIN7_bm
+
+volatile uint32_t seconds = 0;
+volatile uint32_t minutes = 0;
+volatile bool newOfv = false;
+volatile bool stepmissed = false;
+
+uint32_t clocks = 0;
+volatile bool leftEnd   = false;
+volatile bool rightEnd  = false;
+
+void readByteBin(uint32_t data, uint8_t size){
+	for(uint32_t i = 0x80000000 ; i > 0; i >>= 1){
+		if(data & i ) printf("1");
+		else printf("0");
+	}
+	printf("\n");
+}
+
+int main(void)
+{
+	cli();
+	init_clock();
+	init_driver();
+	init_stream(F_CPU);
+	
+	
+	LIMIT_PORT.DIRCLR = rightEnd_bm | leftEnd_bm;
+	
+	LIMIT_PORT.PIN6CTRL = PORT_ISC_FALLING_gc | PORT_OPC_PULLDOWN_gc;
+	LIMIT_PORT.PIN7CTRL = PORT_ISC_FALLING_gc | PORT_OPC_PULLDOWN_gc;
+
+	LIMIT_PORT.INT0MASK = rightEnd_bm;
+	LIMIT_PORT.INT1MASK = leftEnd_bm;
+	
+	LIMIT_PORT.INTCTRL = PORT_INT0LVL_LO_gc | PORT_INT1LVL_LO_gc;
+	PMIC.CTRL |= PMIC_LOLVLEN_bm | PMIC_MEDLVLEN_bm | PMIC_HILVLEN_bm;
+	
+	
+	sei();
+	_delay_ms(1000);
+	printf("booted\n");
+	ENABLEDRIVER();
+	_delay_ms(10);
+	uint32_t value = tmcReadReg(TMC2160_LOST_STEPS);
+	readByteBin(value, sizeof(value));
+	
+	STARTCLOCK();
+	_delay_ms(1200);
+	//STOPCLOCK();
+	
+	
+	while(1){
+		if(rightEnd) {printf("Right End\n");rightEnd = false;} //LEFT END SWITCH
+		if(leftEnd) {printf("Left End\n");leftEnd = false;} //RIGHT END SWITCH
+		//STARTCLOCK();
+		//clocks = 0;
+		
+		
+	}
+}
+
+ISR(TCD0_OVF_vect){
+	clocks++;
+	//if( clocks > 50 ) STOPCLOCK();
+}
+
+ISR(PORTB_INT0_vect){
+	rightEnd = true;
+}
+
+ISR(PORTB_INT1_vect){
+	leftEnd = true;
+}
