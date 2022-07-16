@@ -69,7 +69,7 @@ void AccelWriteReg(uint8_t reg, uint8_t val){
 	
 	SPI_PORT.OUTCLR = CSN_bm;
 	
-	spi_transfer(reg | 0x80);
+	spi_transfer(reg);
 	spi_transfer(val);
 	
 	SPI_PORT.OUTSET = CSN_bm;
@@ -80,7 +80,7 @@ uint8_t AccelReadReg(uint8_t reg){
 	
 	SPI_PORT.OUTCLR = CSN_bm;
 	
-	spi_transfer(reg);
+	spi_transfer(reg | 0x80);
 	int value = spi_transfer(0x00);
 	
 	SPI_PORT.OUTSET = CSN_bm;
@@ -105,7 +105,7 @@ int main(void)
 
 
 	fprintf(&gCtrl_IO, "hello world");
-	fprintf(&gCtrl_IO, "Value: %d\r\n", val);
+	fprintf(&gCtrl_IO, "Value: %d", val);
 	while(1){
 	
 
